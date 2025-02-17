@@ -6,7 +6,7 @@ services:
     container_name: model_container
     runtime: nvidia
     volumes:
-      - ../psr-chatbot/models:/models
+      - ./models:/models
     environment:
       - HUGGING_FACE_HUB_TOKEN=$HF_TOKEN # this is mandatory for downloading models
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} # default device is 0
@@ -14,7 +14,7 @@ services:
     networks:
       - chatbot_network
     command: >
-      --model meta-llama/Llama-3.1-8B-Instruct
+      --model ${LLM_NAME:-meta-llama/Llama-3.1-8B-Instruct}
       --download-dir /models
       --gpu-memory-utilization 0.9
       --max-model-len 8192
@@ -29,7 +29,7 @@ services:
       - chatbot_network
     depends_on:
       - model
-    command: python3 chatbot_backend.py
+    command: python3 chatbot_backend.py --llm-name ${LLM_NAME:-meta-llama/Llama-3.1-8B-Instruct}
 
   webapp:
     build:

@@ -6,15 +6,21 @@ import requests_cache
 import pandas as pd
 from retry_requests import retry
 import uvicorn
+import argparse
+
 
 LLM_URL = "http://model_container:8000/v1/"
-LLM_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 WEATHER_FORCAST_URL = "https://api.open-meteo.com/v1/forecast"
 
+parser = argparse.ArgumentParser(description='Run Chatbot FastAPI server')
+parser.add_argument('--llm-name', type=str, default="meta-llama/Llama-3.1-8B-Instruct", help='Name of the LLM to use')
+args = parser.parse_args()
+
+
 class Chatbot:
-    def __init__(self):
+    def __init__(self, llm_model_name):
         self.llm = OpenAI(base_url=LLM_URL, api_key="EMPTY")
-        self.llm_model_name = LLM_MODEL_NAME
+        self.llm_model_name = llm_model_name
 
     def get_weather_info(self) -> pd.DataFrame:
         cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
@@ -105,9 +111,9 @@ class Chatbot:
         )
         return completion.choices[0].message.content
 
-# --- FastAPI Integration ---
+# --- FastAPI ---
 app = FastAPI()
-chatbot = Chatbot()
+chatbot = Chatbot(llm_model_name=args.llm_name)
 
 class AnswerMessageRequest(BaseModel):
     history: list[str]

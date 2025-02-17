@@ -27,6 +27,7 @@ docker-compose up --build
 ```
 
 Some environment variables have to be setup to ensure the correct functioning:
-- HF_TOKEN has to be set with the token of your huggingface API; which should have access to the llama 3.1 models
+- HF_TOKEN has to be set with the token of your huggingface API; which should have access to the model you are trying to use
+- LLM_NAME name of the model to use in backend (if not specified, it defaults to "meta-llama/Llama-3.1-8B-Instruct")
 - CUDA_VISIBLE_DEVICES has to contain the index of the chosen GPU to use. If not specified, the model will use gpu 0
 - EXTERNAL_PORT indicates the external port at which the web service is exposed. If not specified it defaults to 37347
