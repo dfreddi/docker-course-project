@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  model:
+    image: vllm/vllm-openai:latest
+    container_name: model_container
+    runtime: nvidia
+    volumes:
+      - ./models:/models
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=$HF_TOKEN # this is mandatory for downloading models
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} # default device is 0
+    ipc: host
+    networks:
+      - chatbot_network
+    command: >
+      --model meta-llama/Llama-3.2-1B-Instruct
+      --download-dir /models
+      --gpu-memory-utilization 0.25
+      --max-model-len 8192
+
+  chatbot:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.chatbot
+    container_name: chatbot_container
+    networks:
+      - chatbot_network
+    depends_on:
+      - model
+    command: python3 chatbot_backend.py
+
+  webapp:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.streamlit
+    container_name: webapp_container
+    ports:
+      - "${EXTERNAL_PORT:-37347}:8051" # default port is 37347
+    networks:
+      - chatbot_network
+    depends_on:
+      - chatbot
+    command: streamlit run web_app.py --server.port 8051
+
+networks:
+  chatbot_network:
+    driver: bridge

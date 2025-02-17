@@ -19,3 +19,14 @@ Three containers:
 
 ## Limitations
 The bot only reports weather in Cesena for simplicity. Reporting information for different locations would require function calling, which would overcomplicate the project.
+
+## Usage Instructions
+The system can be built and started with:
+```bash
+docker-compose up --build
+```
+
+Some environment variables have to be setup to ensure the correct functioning:
+- HF_TOKEN has to be set with the token of your huggingface API; which should have access to the llama 3.2 models
+- CUDA_VISIBLE_DEVICES has to contain the index of the chosen GPU to use. If not specified, the model will use gpu 0
+- EXTERNAL_PORT indicates the external port at which the web service is exposed. If not specified it defaults to 37347

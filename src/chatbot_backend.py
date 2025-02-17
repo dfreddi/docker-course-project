@@ -1,22 +1,24 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
 from openai import OpenAI
 import openmeteo_requests
 import requests_cache
 import pandas as pd
 from retry_requests import retry
 
-LLM_URL = "https://model-container/v1/"
-LLM_MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
-
+LLM_URL = "https://model_container:8000/v1/"
+LLM_MODEL_NAME = "meta-llama/Llama-3.2-1B-Instruct"
 WEATHER_FORCAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 class Chatbot:
     def __init__(self):
-        self.llm = OpenAI(LLM_URL)
+        self.llm = OpenAI(base_url=LLM_URL, api_key="EMPTY")
+        self.llm_model_name = LLM_MODEL_NAME
 
     def get_weather_info(self) -> pd.DataFrame:
-        cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-        retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-        openmeteo = openmeteo_requests.Client(session = retry_session)
+        cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
+        retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+        openmeteo = openmeteo_requests.Client(session=retry_session)
         params = {
             "latitude": 44.1391,
             "longitude": 12.2431,
@@ -33,10 +35,10 @@ class Chatbot:
         hourly_showers = hourly.Variables(3).ValuesAsNumpy()
         hourly_snowfall = hourly.Variables(4).ValuesAsNumpy()
         hourly_data = {"date": pd.date_range(
-            start = pd.to_datetime(hourly.Time(), unit = "s", utc = True),
-            end = pd.to_datetime(hourly.TimeEnd(), unit = "s", utc = True),
-            freq = pd.Timedelta(seconds = hourly.Interval()),
-            inclusive = "left"
+            start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
+            end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
+            freq=pd.Timedelta(seconds=hourly.Interval()),
+            inclusive="left"
         )}
         hourly_data["temperature_2m"] = hourly_temperature_2m
         hourly_data["precipitation_probability"] = hourly_precipitation_probability
@@ -44,16 +46,16 @@ class Chatbot:
         hourly_data["showers"] = hourly_showers
         hourly_data["snowfall"] = hourly_snowfall
 
-        hourly_dataframe = pd.DataFrame(data = hourly_data)
+        hourly_dataframe = pd.DataFrame(data=hourly_data)
         return hourly_dataframe
 
     def get_formatted_weather_data(self) -> str:
         weather_info = self.get_weather_info()
-        df = weather_info.iloc[::2].copy() # only get info for every 2 hours
+        df = weather_info.iloc[::2].copy()  # only get info for every 2 hours
         df['date'] = pd.to_datetime(df['date'])
         df['date'] = df['date'].dt.tz_convert('Europe/Rome')
         df['date_only'] = df['date'].dt.date
-        grouped = df.groupby('date_only') # group rows by day
+        grouped = df.groupby('date_only')  # group rows by day
 
         # Format the groups into LLM digestible data
         formatted_weather_info = ""
@@ -75,6 +77,8 @@ class Chatbot:
         return pd.Timestamp.now(tz='Europe/Rome').strftime('%A, %B %d, %Y')
 
     def answer_message(self, history: list[str], last_message: str) -> str:
+        print("HISTORY: " + str(history), flush=True)
+        print("LAST MESSAGE: " + (last_message), flush=True)
         assert len(history) % 2 == 0, "The history should have an even number of messages"
 
         # Prepare the system prompt
@@ -93,9 +97,26 @@ class Chatbot:
         messages.append({"role": "user", "content": last_message})
 
         # Call the LLM
-        completion = self.llm_client.chat.completions.create(
+        completion = self.llm.chat.completions.create(
             model=self.llm_model_name,
             messages=messages,
             temperature=0.8
         )
         return completion.choices[0].message.content
+
+# --- FastAPI Integration ---
+app = FastAPI()
+chatbot = Chatbot()
+
+class AnswerMessageRequest(BaseModel):
+    history: list[str]
+    last_message: str
+
+@app.post("/answer_message")
+def answer_message_endpoint(request: AnswerMessageRequest):
+    answer = chatbot.answer_message(request.history, request.last_message)
+    return {"answer": answer}
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run("chatbot_backend:app", host="0.0.0.0", port=8001, reload=True)
