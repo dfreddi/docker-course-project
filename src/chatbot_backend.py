@@ -5,9 +5,10 @@ import openmeteo_requests
 import requests_cache
 import pandas as pd
 from retry_requests import retry
+import uvicorn
 
-LLM_URL = "https://model_container:8000/v1/"
-LLM_MODEL_NAME = "meta-llama/Llama-3.2-1B-Instruct"
+LLM_URL = "http://model_container:8000/v1/"
+LLM_MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 WEATHER_FORCAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 class Chatbot:
@@ -118,5 +119,4 @@ def answer_message_endpoint(request: AnswerMessageRequest):
     return {"answer": answer}
 
 if __name__ == '__main__':
-    import uvicorn
     uvicorn.run("chatbot_backend:app", host="0.0.0.0", port=8001, reload=True)
