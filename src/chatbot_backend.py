@@ -83,33 +83,35 @@ class Chatbot:
     def get_current_time_string(self) -> str:
         return pd.Timestamp.now(tz='Europe/Rome').strftime('%A, %B %d, %Y')
 
-    def answer_message(self, history: list[str], last_message: str) -> str:
-        print("HISTORY: " + str(history), flush=True)
-        print("LAST MESSAGE: " + (last_message), flush=True)
-        assert len(history) % 2 == 0, "The history should have an even number of messages"
+    async def answer_message(self, question, chat_history):
+        # Prepare the system prompt and messages
+        system_prompt = self.get_system_prompt()
+        messages = self.prepare_messages(system_prompt, chat_history, question)
 
-        # Prepare the system prompt
+        # Call the LLM and yield the response chunks
+        async for chunk in self.llm.chat.completions.create(
+            model=self.llm_model_name,
+            messages=messages,
+            temperature=0.8,
+            stream=True
+        ):
+            yield chunk
+
+    def get_system_prompt(self):
         with open('./prompts/system_prompt_template.txt', 'r') as file:
             system_prompt_template = file.read()
-        system_prompt = system_prompt_template.format(
+        return system_prompt_template.format(
             current_time=self.get_current_time_string(),
             weather_forecast=self.get_formatted_weather_data()
         )
 
-        # Prepare the messages for the completion
+    def prepare_messages(self, system_prompt, chat_history, question):
         messages = [{"role": "system", "content": system_prompt}]
-        for user_message, bot_response in zip(history[::2], history[1::2]):
+        for user_message, bot_response in zip(chat_history[::2], chat_history[1::2]):
             messages.append({"role": "user", "content": user_message})
             messages.append({"role": "assistant", "content": bot_response})
-        messages.append({"role": "user", "content": last_message})
-
-        # Call the LLM
-        completion = self.llm.chat.completions.create(
-            model=self.llm_model_name,
-            messages=messages,
-            temperature=0.8
-        )
-        return completion.choices[0].message.content
+        messages.append({"role": "user", "content": question})
+        return messages
 
 # --- FastAPI ---
 app = FastAPI()

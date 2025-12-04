@@ -14,7 +14,7 @@ services:
     networks:
       - chatbot_network
     command: >
-      --model ${LLM_NAME:-meta-llama/Llama-3.1-8B-Instruct}
+      --model ${LLM_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
       --download-dir /models
       --gpu-memory-utilization 0.9
       --max-model-len 8192
