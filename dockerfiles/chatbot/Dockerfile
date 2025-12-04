@@ -20,12 +20,15 @@ RUN apt-get update -y && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
 RUN pip install --upgrade pip
+RUN pip install wrapt --upgrade --ignore-installed
 
-# Web server stuff
-RUN pip install streamlit==1.41.0
+# Copy requirements and install dependencies
+COPY ./dockerfiles/chatbot/requirements.txt /workdir/requirements.txt
+RUN pip install -r requirements.txt
 
-# Copy source code and .env file
-COPY ./src/web_app.py /workdir/web_app.py
+# Copy source code
+COPY ./src/chatbot_backend.py /workdir/chatbot_backend.py
+COPY ./prompts /workdir/prompts
 
 # Back to default frontend
 ENV DEBIAN_FRONTEND=dialog
