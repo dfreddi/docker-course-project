@@ -13,6 +13,12 @@ services:
     ipc: host
     networks:
       - chatbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     command: >
       --model ${LLM_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
       --download-dir /models
@@ -23,25 +29,33 @@ services:
   chatbot:
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile.chatbot
+      dockerfile: dockerfiles/chatbot/Dockerfile
     container_name: chatbot_container
     networks:
       - chatbot_network
     depends_on:
-      - model
+      model:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     command: python3 chatbot_backend.py --llm-name ${LLM_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
 
   webapp:
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile.streamlit
+      dockerfile: dockerfiles/streamlit/Dockerfile
     container_name: webapp_container
     ports:
       - "${EXTERNAL_PORT:-37347}:8051" # default port is 37347
     networks:
       - chatbot_network
     depends_on:
-      - chatbot
+      chatbot:
+        condition: service_healthy
     command: streamlit run web_app.py --server.port 8051
 
 networks:
