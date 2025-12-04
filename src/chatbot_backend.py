@@ -126,5 +126,10 @@ def answer_message_endpoint(request: AnswerMessageRequest):
     answer = chatbot.answer_message(request.history, request.last_message)
     return {"answer": answer}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Docker compose healthcheck"""
+    return {"status": "healthy"}
+
 if __name__ == '__main__':
     uvicorn.run("chatbot_backend:app", host="0.0.0.0", port=8001, reload=True)
